@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador del Modelo Leverage de Harrington</title>
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --primary: #2b5c8f;
+            --success: #28a745;
+            --danger: #dc3545;
+            --text: #333333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        h1 {
+            color: var(--primary);
+            margin-top: 0;
+            text-align: center;
+            font-size: 24px;
+        }
+
+        .intro {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #555;
+            margin-bottom: 20px;
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 5px solid var(--primary);
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 20px;
+        }
+
+        @media (max-width: 850px) {
+            .layout { grid-template-columns: 1fr; }
+        }
+
+        .canvas-container {
+            position: relative;
+            background: #1e1e24;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            background: #11141a;
+        }
+
+        .controls {
+            background: #f1f3f5;
+            padding: 20px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        input[type="range"] {
+            width: 100%;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        .btn:hover { background: #1f446c; }
+        .btn-reset { background: #6c757d; }
+        .btn-reset:hover { background: #5a6268; }
+
+        .stats {
+            margin-top: 10px;
+            font-size: 13px;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+        }
+
+        .lessons-section {
+            margin-top: 30px;
+            border-top: 2px solid #dee2e6;
+            padding-top: 20px;
+        }
+
+        .lessons-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        @media (max-width: 700px) {
+            .lessons-grid { grid-template-columns: 1fr; }
+        }
+
+        .lesson-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            border-top: 4px solid var(--primary);
+        }
+
+        .lesson-card h4 {
+            margin: 0 0 8px 0;
+            color: var(--primary);
+        }
+
+        .lesson-card p {
+            margin: 0;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Simulador Interactivo: Modelo de Apalancamiento de Harrington (1988)</h1>
+    
+    <div class="intro">
+        <strong>¿Qué estás viendo?</strong> Este Canvas simula de manera gráfica el mecanismo de "Enfoque Dirigido" (Targeted Enforcement). Las empresas en el <strong>Grupo 1 (Verde)</strong> disfrutan de tasas de auditoría bajas y multas mínimas porque cumplen la ley. Si violan la norma, son degradadas al <strong>Grupo 2 (Rojo)</strong>, donde el regulador concentra su fuerza con inspecciones frecuentes y severas. Al cumplir en el Grupo 2, pueden ganar de nuevo la confianza y regresar al Grupo 1. ¡Esto crea un poderoso "apalancamiento" para el cumplimiento voluntario!
+    </div>
+
+    <div class="layout">
+        <div class="canvas-container">
+            <canvas id="harringtonCanvas" width="600" height="450"></canvas>
+        </div>
+
+        <div class="controls">
+            <h3>Controles del Regulador</h3>
+            
+            <div class="control-group">
+                <label for="probG1">Probabilidad Inspección Grupo 1: <span id="valG1">10%</span></label>
+                <input type="range" id="probG1" min="5" max="30" value="10">
+            </div>
+
+            <div class="control-group">
+                <label for="probG2">Probabilidad Inspección Grupo 2: <span id="valG2">80%</span></label>
+                <input type="range" id="probG2" min="50" max="100" value="80">
+            </div>
+
+            <button class="btn" id="btnSimular">Paso de Tiempo (Simular Período)</button>
+            <button class="btn btn-reset" id="btnReset">Reiniciar Empresas</button>
+
+            <div class="stats">
+                <strong>Estado del Mercado:</strong><br>
+                🟢 Grupo 1 (Cumplidoras): <span id="countG1">20</span><br>
+                🔴 Grupo 2 (Bajo Lupa): <span id="countG2">0</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="lessons-section">
+        <h3>💡 Lecciones Clave de Política Económica Ambiental</h3>
+        <div class="lessons-grid">
+            <div class="lesson-card">
+                <h4>1. El poder del monitoreo estratégico</h4>
+                <p>El regulador no necesita un presupuesto infinito para auditar a todas las empresas al azar (como sugería Becker). Al segmentar el riesgo, el miedo a caer en el "Grupo Pesadilla" (Grupo 2) actúa como un fuerte disuasor.</p>
+            </div>
+            <div class="lesson-card">
+                <h4>2. Solución ante restricciones legales</h4>
+                <p>A menudo, los legisladores imponen techos máximos a las multas monetarias que una agencia ambiental puede cobrar. El modelo demuestra que el castigo real no es solo la multa, sino el costo de perder la reputación y sufrir auditorías continuas.</p>
+            </div>
+            <div class="lesson-card">
+                <h4>3. Mecanismo de "Rehabilitación"</h4>
+                <p>Dar una ruta de escape clara para que las empresas del Grupo 2 regresen al Grupo 1 tras demostrar buen comportamiento previene que las firmas se vuelvan "violadoras permanentes". Incentiva la reinserción legal.</p>
+            </div>
+            <div class="lesson-card">
+                <h4>4. Eficiencia fiscal y presupuestaria</h4>
+                <p>Permite optimizar los recursos públicos. La mayor parte de la industria se auto-regula de forma cooperativa en el Grupo 1, dejando libre la capacidad operativa de la agencia para concentrarse firmemente en los infractores reincidentes.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('harringtonCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Estado inicial de las empresas de la simulación
+    let firms = [];
+    const numFirms = 20;
+
+    // Elementos de la interfaz
+    const probG1Slider = document.getElementById('probG1');
+    const probG2Slider = document.getElementById('probG2');
+    const valG1 = document.getElementById('valG1');
+    const valG2 = document.getElementById('valG2');
+    const countG1 = document.getElementById('countG1');
+    const countG2 = document.getElementById('countG2');
+
+    // Actualizar textos de los sliders
+    probG1Slider.oninput = function() { valG1.innerText = this.value + '%'; }
+    probG2Slider.oninput = function() { valG2.innerText = this.value + '%'; }
+
+    // Clase para representar a cada firma en el Canvas
+    class Firm {
+        constructor(id) {
+            this.id = id;
+            this.group = 1; // Comienzan en Grupo 1
+            this.resetPosition();
+        }
+
+        resetPosition() {
+            if (this.group === 1) {
+                // Cuadrante Izquierdo (Grupo 1)
+                this.x = Math.random() * 160 + 40;
+                this.y = Math.random() * 250 + 120;
+            } else {
+                // Cuadrante Derecho (Grupo 2)
+                this.x = Math.random() * 160 + 400;
+                this.y = Math.random() * 250 + 120;
+            }
+            this.targetX = this.x;
+            this.targetY = this.y;
+        }
+
+        update() {
+            // Suavizado de movimiento (animación de transición de grupos)
+            this.x += (this.targetX - this.x) * 0.1;
+            this.y += (this.targetY - this.y) * 0.1;
+        }
+
+        draw() {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, 10, 0, Math.PI * 2);
+            ctx.fillStyle = this.group === 1 ? '#28a745' : '#dc3545';
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.closePath();
+        }
+
+        moveToGroup(newGroup) {
+            this.group = newGroup;
+            if (newGroup === 1) {
+                this.targetX = Math.random() * 160 + 40;
+                this.targetY = Math.random() * 250 + 120;
+            } else {
+                this.targetX = Math.random() * 160 + 400;
+                this.targetY = Math.random() * 250 + 120;
+            }
+        }
+    }
+
+    // Inicializar firmas
+    function init() {
+        firms = [];
+        for(let i=0; i<numFirms; i++) {
+            firms.push(new Firm(i));
+        }
+        updateCounters();
+    }
+
+    function updateCounters() {
+        const g1 = firms.filter(f => f.group === 1).length;
+        countG1.innerText = g1;
+        countG2.innerText = numFirms - g1;
+    }
+
+    // Dibujar el fondo estático, los contenedores y etiquetas explicativas
+    function drawBackground() {
+        // Fondo General
+        ctx.fillStyle = '#11141a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // --- CONTENEDOR GRUPO 1 ---
+        ctx.fillStyle = 'rgba(40, 167, 69, 0.05)';
+        ctx.fillRect(20, 80, 220, 320);
+        ctx.strokeStyle = 'rgba(40, 167, 69, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(20, 80, 220, 320);
+
+        ctx.fillStyle = '#28a745';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.fillText('GRUPO 1: Confianza', 30, 110);
+        ctx.font = '12px sans-serif';
+        ctx.fillStyle = '#aaa';
+        ctx.fillText('Bajo Monitoreo (' + probG1Slider.value + '%)', 30, 130);
+
+        // --- CONTENEDOR GRUPO 2 ---
+        ctx.fillStyle = 'rgba(220, 53, 69, 0.05)';
+        ctx.fillRect(360, 80, 220, 320);
+        ctx.strokeStyle = 'rgba(220, 53, 69, 0.4)';
+        ctx.strokeRect(360, 80, 220, 320);
+
+        ctx.fillStyle = '#dc3545';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.fillText('GRUPO 2: Sospecha', 370, 110);
+        ctx.font = '12px sans-serif';
+        ctx.fillStyle = '#aaa';
+        ctx.fillText('Alto Monitoreo (' + probG2Slider.value + '%)', 370, 130);
+
+        // --- FLECHAS DE TRANSICIÓN ---
+        ctx.fillStyle = '#e9ecef';
+        ctx.font = '12px sans-serif';
+
+        // Flecha arriba: Infracción (1 -> 2)
+        ctx.strokeStyle = '#dc3545';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(250, 180);
+        ctx.lineTo(350, 180);
+        ctx.lineTo(340, 175);
+        ctx.moveTo(350, 180);
+        ctx.lineTo(340, 185);
+        ctx.stroke();
+        ctx.fillStyle = '#dc3545';
+        ctx.fillText('⚠️ Detectado Infringiendo', 248, 165);
+
+        // Flecha abajo: Rehabilitación (2 -> 1)
+        ctx.strokeStyle = '#28a745';
+        ctx.beginPath();
+        ctx.moveTo(350, 300);
+        ctx.lineTo(250, 300);
+        ctx.lineTo(260, 295);
+        ctx.moveTo(250, 300);
+        ctx.lineTo(260, 305);
+        ctx.stroke();
+        ctx.fillStyle = '#28a745';
+        ctx.fillText('✅ Cumple en inspección', 250, 320);
+
+        // Título superior del Canvas
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '14px sans-serif';
+        ctx.fillText('Estructura de Transición Dinámica de Harrington', 20, 40);
+    }
+
+    // Bucle de animación para que las esferas se muevan de forma fluida
+    function loop() {
+        drawBackground();
+        firms.forEach(firm => {
+            firm.update();
+            firm.draw();
+        });
+        requestAnimationFrame(loop);
+    }
+
+    // Simulación estocástica del paso del tiempo basada en las probabilidades
+    document.getElementById('btnSimular').onclick = function() {
+        const p1 = parseInt(probG1Slider.value) / 100;
+        const p2 = parseInt(probG2Slider.value) / 100;
+
+        firms.forEach(firm => {
+            if (firm.group === 1) {
+                // En el grupo 1, se inspecciona con probabilidad p1
+                if (Math.random() < p1) {
+                    // Simulamos que un porcentaje de las inspeccionadas comete una infracción
+                    if (Math.random() * 100 > 30) { // 70% de probabilidad de ser atrapado en falta si se le inspecciona
+                        firm.moveToGroup(2);
+                    }
+                }
+            } else {
+                // En el grupo 2, se le inspecciona intensamente (p2)
+                if (Math.random() < p2) {
+                    // Si se le inspecciona y decide cumplir para salvarse:
+                    if (Math.random() * 100 > 40) { // 60% de éxito en corregir conducta
+                        firm.moveToGroup(1);
+                    }
+                }
+            }
+        });
+        updateCounters();
+    };
+
+    document.getElementById('btnReset').onclick = init;
+
+    // Ejecución inicial
+    init();
+    loop();
+</script>
+
+</body>
+</html>
